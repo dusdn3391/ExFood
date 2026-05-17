@@ -196,10 +196,14 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AddFoodForm.cs">
+    <Compile Include="Forms\AddFoodForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="CameraForm.cs">
+    <Compile Include="Forms\DisposalGuideForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Models\AppConfig.cs" />
+    <Compile Include="Forms\CameraForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Controls\FoodItemCard.cs">
@@ -220,6 +224,10 @@
     <Compile Include="Models\FoodItem.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Service\CategoryService.cs" />
+    <Compile Include="Service\DbService.cs" />
+    <Compile Include="Service\OcrServices.cs" />
+    <Compile Include="Service\RecipeService.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -229,6 +237,9 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
