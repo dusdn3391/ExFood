@@ -194,27 +194,7 @@ Tesseract → Google Vision API
 ```csharp
 string datePattern = @"(\d{2,4})[.\-/](\d{2})[.\-/](\d{2,4})";
 ```
-
-### 3. 이모지 MySQL 저장 오류
-**문제:** 카테고리 이모지 저장 시 `Incorrect string value` 오류
-
-**해결:** MySQL 테이블 인코딩 변경
-```sql
-ALTER TABLE ingredients
-CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-### 4. appsettings.json 경로 문제
-**문제:** `appsettings.json` 을 `bin/Debug` 폴더에서 못 찾는 오류
-
-**해결:** csproj 파일에 자동 복사 설정 추가
-```xml
-<Content Include="appsettings.json">
-  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-</Content>
-```
-
-### 5. 조리순서 번호 중복 문제
+### 3. 조리순서 번호 중복 문제
 **문제:** API 응답에 이미 번호가 있는데 코드에서 번호를 또 붙여서 중복 발생
 ```
 2. 2. 부재채를 잘게...
