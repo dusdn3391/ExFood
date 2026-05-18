@@ -27,8 +27,40 @@ namespace ExFood
             this.Size = new Size(420, 780);
             this.BackColor = Color.FromArgb(245, 243, 235);
             this.StartPosition = FormStartPosition.CenterScreen;
-        }
 
+            this.Load += (s, e) => CheckAlarmOnStart();
+        }
+        private void CheckAlarmOnStart()
+        {
+            var expiring = AlarmService.GetExpiringItems(2);
+            var expired = AlarmService.GetExpiredItems();
+
+            if (expiring.Count > 0 || expired.Count > 0)
+            {
+                string msg = "";
+
+                if (expired.Count > 0)
+                    msg += $"🔴 만료된 식재료: {expired.Count}개\n";
+
+                if (expiring.Count > 0)
+                    msg += $"🟠 임박한 식재료: {expiring.Count}개\n";
+
+                msg += "\n알림 화면에서 확인하세요!";
+
+                DialogResult result = MessageBox.Show(
+                    msg,
+                    "🔔 유통기한 알림",
+                    MessageBoxButtons.OKCancel
+                );
+
+                // 확인 누르면 알림 화면 열기
+                if (result == DialogResult.OK)
+                {
+                    AlarmForm alarm = new AlarmForm();
+                    alarm.ShowDialog();
+                }
+            }
+        }
         private void BuildUI()
         {
             // 1. 하단 네비
@@ -363,7 +395,7 @@ namespace ExFood
                     e.Graphics.DrawLine(pen, 0, 0, nav.Width, 0);
             };
 
-            string[] labels = { "🧊\nFridge", "🔔\n알림", "♻️\n폐기", "⚙️\nSettings" };
+            string[] labels = { "🧊\nFridge", "🔔\n레시피 추천", "♻️\n폐기", "⚙️\nSettings" };
             int btnWidth = 90;
             int startX = 15;
 
@@ -421,23 +453,8 @@ namespace ExFood
         // ── 알림 패널 ──
         private void ShowAlarmPanel()
         {
-            var items = DbService.GetAllIngredients();
-            string msg = "";
-
-            foreach (var item in items)
-            {
-                if (item.DaysLeft < 0)
-                    msg += $"🔴 만료됨: {item.Name}\n";
-                else if (item.DaysLeft == 0)
-                    msg += $"🔴 오늘 만료: {item.Name}\n";
-                else if (item.DaysLeft <= 2)
-                    msg += $"🟠 D-{item.DaysLeft} 임박: {item.Name}\n";
-            }
-
-            if (string.IsNullOrEmpty(msg))
-                msg = "✅ 임박한 식재료가 없어요!";
-
-            MessageBox.Show(msg, "🔔 유통기한 알림");
+            AlarmForm alarm = new AlarmForm();
+            alarm.ShowDialog();
         }
 
         // ── 폐기 가이드 ──

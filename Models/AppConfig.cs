@@ -21,21 +21,16 @@ namespace ExFood.Models
         // ✅ appsettings.json 찾기
         private static string FindConfigPath()
         {
-            // 찾을 경로 목록
             string[] searchPaths = new string[]
             {
-                // 1. bin/Debug 폴더
                 AppDomain.CurrentDomain.BaseDirectory,
 
-                // 2. 프로젝트 루트 (bin/Debug/../../)
                 Path.GetFullPath(Path.Combine(
                     AppDomain.CurrentDomain.BaseDirectory, "..", "..")),
 
-                // 3. 프로젝트 루트 (bin/Debug/../../../)
                 Path.GetFullPath(Path.Combine(
                     AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..")),
 
-                // 4. 현재 실행 디렉토리
                 Directory.GetCurrentDirectory()
             };
 
@@ -75,11 +70,12 @@ namespace ExFood.Models
             get
             {
                 return string.Format(
-                    "server={0};user={1};password={2};database={3};",
-                    _config?["Database:Server"] ?? "",
-                    _config?["Database:User"] ?? "",
-                    _config?["Database:Password"] ?? "",
-                    _config?["Database:Name"] ?? ""
+                    "Host={0};Port={1};Username={2};Password={3};Database={4};SSL Mode=Require;Trust Server Certificate=true;",
+                    _config["Database:Server"],
+                    _config["Database:Port"],
+                    _config["Database:User"],
+                    _config["Database:Password"],
+                    _config["Database:Name"]
                 );
             }
         }

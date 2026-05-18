@@ -1,8 +1,8 @@
 ﻿using ExFood.Models;
-using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
+using Npgsql; 
 
 namespace ExFood.Services
 {
@@ -15,25 +15,25 @@ namespace ExFood.Services
 
             try
             {
-                using (var conn = new MySqlConnection(AppConfig.ConnectionString))
+                using (var conn = new NpgsqlConnection(AppConfig.ConnectionString))
                 {
                     conn.Open();
-                    string query = "SELECT * FROM ingredients ORDER BY ExpirationDate ASC";
+                    string query = "SELECT * FROM ingredients ORDER BY expirationdate ASC";
 
-                    using (var cmd = new MySqlCommand(query, conn))
+                    using (var cmd = new NpgsqlCommand(query, conn))
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
                             list.Add(new FoodItem
                             {
-                                Id = reader.GetInt32("Id"),
-                                Name = reader.GetString("Name"),
-                                Category = reader.IsDBNull(reader.GetOrdinal("Category"))
-                                                 ? "" : reader.GetString("Category"),
-                                StoragePlace = reader.IsDBNull(reader.GetOrdinal("StoragePlace"))
-                                                 ? "" : reader.GetString("StoragePlace"),
-                                ExpirationDate = reader.GetDateTime("ExpirationDate")
+                                Id = reader.GetInt32(reader.GetOrdinal("id")),
+                                Name = reader.GetString(reader.GetOrdinal("name")),
+                                Category = reader.IsDBNull(reader.GetOrdinal("category"))
+                                                 ? "" : reader.GetString(reader.GetOrdinal("category")),
+                                StoragePlace = reader.IsDBNull(reader.GetOrdinal("storageplace"))
+                                                 ? "" : reader.GetString(reader.GetOrdinal("storageplace")),
+                                ExpirationDate = reader.GetDateTime(reader.GetOrdinal("expirationdate"))
                                                  .ToString("yyyy-MM-dd")
                             });
                         }
@@ -56,7 +56,6 @@ namespace ExFood.Services
 
             foreach (var item in all)
             {
-                // 카테고리 이름 정리 (이모지 + 괄호 제거)
                 string category = CleanCategory(item.Category);
 
                 if (!dict.ContainsKey(category))
@@ -68,36 +67,75 @@ namespace ExFood.Services
             return dict;
         }
 
-        // ── 카테고리 이름 정리 ──
-        private static string CleanCategory(string category)
+        // ── 식재료 저장 ──
+        public static bool SaveIngredient(string name, string category,
+            string storage, string date)
         {
-            if (string.IsNullOrEmpty(category))
-                return "기타";
+            try
+            {
+                using (var conn = new NpgsqlConnection(AppConfig.ConnectionString))
+                {
+                    conn.Open();
+                    string query = @"INSERT INTO ingredients 
+                    (name, category, storageplace, expirationdate) 
+                    VALUES (@name, @category, @storage, @date)";
 
-            // 괄호 안 내용 제거 (예: "🥫 가공식품 (OCR 사용)" → "가공식품")
-            string clean = System.Text.RegularExpressions.Regex
-                .Replace(category, @"\(.*?\)", "").Trim();
-
-            // 이모지 제거
-            clean = System.Text.RegularExpressions.Regex
-                .Replace(clean, @"[^\u0000-\u007F\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F\s]", "")
-                .Trim();
-
-            return string.IsNullOrEmpty(clean) ? "기타" : clean;
+                    using (var cmd = new NpgsqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@name", name);
+                        cmd.Parameters.AddWithValue("@category", category);
+                        cmd.Parameters.AddWithValue("@storage", storage);
+                        cmd.Parameters.AddWithValue("@date", DateTime.Parse(date));
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("저장 오류: " + ex.Message);
+                return false;
+            }
         }
+
+        // ── 식재료 삭제 ──
+        public static bool DeleteIngredient(int id)
+        {
+            try
+            {
+                using (var conn = new NpgsqlConnection(AppConfig.ConnectionString))
+                {
+                    conn.Open();
+                    string query = "DELETE FROM ingredients WHERE id = @id";
+
+                    using (var cmd = new NpgsqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", id);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("삭제 오류: " + ex.Message);
+                return false;
+            }
+        }
+
         // ── 일일 제한 체크 ──
         public static bool CheckDailyLimit(int limit = 20)
         {
             try
             {
-                using (var conn = new MySqlConnection(AppConfig.ConnectionString))
+                using (var conn = new NpgsqlConnection(AppConfig.ConnectionString))
                 {
                     conn.Open();
-                    string query = "SELECT ItemCount FROM api_usage WHERE UsageDate = @today";
+                    string query = "SELECT itemcount FROM api_usage WHERE usagedate = @today";
 
-                    using (var cmd = new MySqlCommand(query, conn))
+                    using (var cmd = new NpgsqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@today", DateTime.Today.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@today", DateTime.Today);
                         var result = cmd.ExecuteScalar();
                         int count = result != null ? Convert.ToInt32(result) : 0;
 
@@ -124,16 +162,19 @@ namespace ExFood.Services
         {
             try
             {
-                using (var conn = new MySqlConnection(AppConfig.ConnectionString))
+                using (var conn = new NpgsqlConnection(AppConfig.ConnectionString))
                 {
                     conn.Open();
-                    string query = @"INSERT INTO api_usage (UsageDate, ItemCount) 
-                                   VALUES (@today, 1)
-                                   ON DUPLICATE KEY UPDATE ItemCount = ItemCount + 1";
 
-                    using (var cmd = new MySqlCommand(query, conn))
+                    // ✅ PostgreSQL 문법 (ON CONFLICT)
+                    string query = @"INSERT INTO api_usage (usagedate, itemcount) 
+                               VALUES (@today, 1)
+                               ON CONFLICT (usagedate) 
+                               DO UPDATE SET itemcount = api_usage.itemcount + 1";
+
+                    using (var cmd = new NpgsqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@today", DateTime.Today.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@today", DateTime.Today);
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -141,65 +182,21 @@ namespace ExFood.Services
             catch { }
         }
 
-        // ── 식재료 저장 ──
-        public static bool SaveIngredient(string name, string category,
-     string storage, string date)
+        // ── 카테고리 이름 정리 ──
+        private static string CleanCategory(string category)
         {
-            try
-            {
-                // ✅ 이모지 제거 후 저장
-                string cleanCategory = System.Text.RegularExpressions.Regex
-                    .Replace(category, @"[^\u0000-\u007F\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]", "")
-                    .Trim();
+            if (string.IsNullOrEmpty(category))
+                return "기타";
 
-                using (var conn = new MySqlConnection(AppConfig.ConnectionString))
-                {
-                    conn.Open();
-                    string query = @"INSERT INTO ingredients 
-                (Name, Category, StoragePlace, ExpirationDate) 
-                VALUES (@name, @category, @storage, @date)";
+            string clean = System.Text.RegularExpressions.Regex
+                .Replace(category, @"\(.*?\)", "").Trim();
 
-                    using (var cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@name", name);
-                        cmd.Parameters.AddWithValue("@category", cleanCategory);
-                        cmd.Parameters.AddWithValue("@storage", storage);
-                        cmd.Parameters.AddWithValue("@date", date);
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("저장 오류: " + ex.Message);
-                return false;
-            }
+            clean = System.Text.RegularExpressions.Regex
+                .Replace(clean, @"[^\u0000-\u007F\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F\s]", "")
+                .Trim();
+
+            return string.IsNullOrEmpty(clean) ? "기타" : clean;
         }
-        // ── 식재료 삭제 ──
-        public static bool DeleteIngredient(int id)
-        {
-            try
-            {
-                using (var conn = new MySqlConnection(AppConfig.ConnectionString))
-                {
-                    conn.Open();
-                    string query = "DELETE FROM ingredients WHERE Id = @id";
-
-                    using (var cmd = new MySqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", id);
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("삭제 오류: " + ex.Message);
-                return false;
-            }
-        }
-
     }
+
 }

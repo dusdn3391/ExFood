@@ -1,9 +1,10 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using Newtonsoft.Json;
+using System.Windows.Forms;
 
-namespace ExFood.Services
+namespace ExFood.Service
 {
     public static class RecipeService
     {
@@ -17,11 +18,13 @@ namespace ExFood.Services
 
             try
             {
-                string url = $"{BASE_URL}/{API_KEY}/COOKRCP01/json/1/20";
+                string url = $"{BASE_URL}/{API_KEY}/COOKRCP01/json/1/100";
 
                 using (var client = new HttpClient())
                 {
                     string responseJson = client.GetStringAsync(url).Result;
+
+                    // ✅ result 변수 추가
                     dynamic result = JsonConvert.DeserializeObject(responseJson);
 
                     var rows = result.COOKRCP01.row;
@@ -29,14 +32,15 @@ namespace ExFood.Services
                     foreach (var row in rows)
                     {
                         string parts = row.RCP_PARTS_DTLS?.ToString() ?? "";
+                        string name = row.RCP_NM?.ToString() ?? "";
 
-                        // 재료에 검색어 포함된 것만
+                        // 재료 또는 이름에 검색어 포함된 것만
                         if (parts.Contains(ingredient) ||
-                            row.RCP_NM.ToString().Contains(ingredient))
+                            name.Contains(ingredient))
                         {
                             recipes.Add(new Recipe
                             {
-                                Name = row.RCP_NM?.ToString() ?? "",
+                                Name = name,
                                 Parts = parts,
                                 ImageUrl = row.ATT_FILE_NO_MAIN?.ToString() ?? "",
                                 Manual01 = row.MANUAL01?.ToString() ?? "",
@@ -45,6 +49,10 @@ namespace ExFood.Services
                                 Manual04 = row.MANUAL04?.ToString() ?? "",
                                 Manual05 = row.MANUAL05?.ToString() ?? "",
                                 Manual06 = row.MANUAL06?.ToString() ?? "",
+                                Manual07 = row.MANUAL07?.ToString() ?? "",
+                                Manual08 = row.MANUAL08?.ToString() ?? "",
+                                Manual09 = row.MANUAL09?.ToString() ?? "",
+                                Manual10 = row.MANUAL10?.ToString() ?? "",
                                 Calorie = row.INFO_ENG?.ToString() ?? ""
                             });
                         }
@@ -53,7 +61,7 @@ namespace ExFood.Services
             }
             catch (Exception ex)
             {
-                System.Windows.Forms.MessageBox.Show("레시피 검색 오류: " + ex.Message);
+                MessageBox.Show("레시피 검색 오류: " + ex.Message);
             }
 
             return recipes;
@@ -72,21 +80,40 @@ namespace ExFood.Services
         public string Manual04 { get; set; }
         public string Manual05 { get; set; }
         public string Manual06 { get; set; }
+        public string Manual07 { get; set; }
+        public string Manual08 { get; set; }
+        public string Manual09 { get; set; }
+        public string Manual10 { get; set; }
         public string Calorie { get; set; }
 
-        // 조리순서 합치기
+        // ✅ 조리순서 - 빈값 스킵 + 번호 재정렬
         public string FullManual
         {
             get
             {
-                string manual = "";
-                if (!string.IsNullOrEmpty(Manual01)) manual += "1. " + Manual01 + "\n\n";
-                if (!string.IsNullOrEmpty(Manual02)) manual += "2. " + Manual02 + "\n\n";
-                if (!string.IsNullOrEmpty(Manual03)) manual += "3. " + Manual03 + "\n\n";
-                if (!string.IsNullOrEmpty(Manual04)) manual += "4. " + Manual04 + "\n\n";
-                if (!string.IsNullOrEmpty(Manual05)) manual += "5. " + Manual05 + "\n\n";
-                if (!string.IsNullOrEmpty(Manual06)) manual += "6. " + Manual06 + "\n\n";
-                return manual.Trim();
+                var manuals = new string[]
+                {
+                    Manual01, Manual02, Manual03, Manual04, Manual05,
+                    Manual06, Manual07, Manual08, Manual09, Manual10
+                };
+
+                string result = "";
+                int step = 1;
+
+                foreach (string manual in manuals)
+                {
+                    if (string.IsNullOrWhiteSpace(manual))
+                        continue;
+
+                    // 앞에 숫자 제거 후 새로 번호 붙이기
+                    string cleaned = System.Text.RegularExpressions
+                        .Regex.Replace(manual.Trim(), @"^\d+\.\s*", "");
+
+                    result += step + ". " + cleaned + "\n\n";
+                    step++;
+                }
+
+                return result.Trim();
             }
         }
     }
